@@ -4,8 +4,6 @@ env:
   OUT_DIR: "out"
   KERNEL_VERSION: "5.15"
   ANDROID_VERSION: "13"
-  KBUILD_BUILD_USER: "NotPichayut"
-  KBUILD_BUILD_HOST: "Github"
 
 on:
   workflow_dispatch:
@@ -19,7 +17,7 @@ on:
         description: "Kernel branch"
         required: false
         type: string
-        default: "zepharo"
+        default: "codelinaro"
       kernelDevice:
         description: "Device (used for defconfig)"
         required: true
