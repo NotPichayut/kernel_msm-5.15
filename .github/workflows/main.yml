@@ -123,6 +123,9 @@ jobs:
           if [ -n "${{ github.event.inputs.localVersion }}" ]; then
             echo "CONFIG_LOCALVERSION=\"${{ github.event.inputs.localVersion }}\"" >> "$CONFIG_FILE"
           fi
+
+          # strip -android13-8-g<hash>: setlocalversion prints only localVersion
+          printf "#!/bin/sh\nprintf '%%s' '%s'\n" "${{ github.event.inputs.localVersion }}" > scripts/setlocalversion
           
           CONFIG_FILE="arch/arm64/configs/${{ env.DEFCONFIG_NAME }}"
           cat >> "$CONFIG_FILE" << 'EOF'
