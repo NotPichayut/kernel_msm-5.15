@@ -310,7 +310,7 @@ jobs:
         run: |
           if [[ -f "${{ env.ZIP_PATH }}" ]]; then
             curl -s -F document=@"${{ env.ZIP_PATH }}" \
-                 -F caption="✅ Kernel Build Complete (WildKSU) - $(date '+%Y-%m-%d %H:%M:%S')" \
+                 -F caption="✅ Kernel Build Complete (ReSukiSU) - $(date '+%Y-%m-%d %H:%M:%S')" \
                  -F chat_id=${{ secrets.TELEGRAM_USER_ID }} \
                  "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendDocument"
           else
