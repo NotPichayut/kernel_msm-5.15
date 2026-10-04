@@ -19,7 +19,7 @@ on:
         description: "Kernel branch"
         required: false
         type: string
-        default: "codelinaro"
+        default: "zepharo"
       kernelDevice:
         description: "Device (used for defconfig)"
         required: true
@@ -126,6 +126,9 @@ jobs:
 
           # strip -android13-8-g<hash>: setlocalversion prints only localVersion
           printf "#!/bin/sh\nprintf '%%s' '%s'\n" "${{ github.event.inputs.localVersion }}" > scripts/setlocalversion
+
+          # force compile user/host (build.sh overrides KBUILD_BUILD_*)
+          sed -i "/^[[:space:]]*UTS_VERSION=\"#\$VERSION\"/i LINUX_COMPILE_BY=$KBUILD_BUILD_USER\nLINUX_COMPILE_HOST=$KBUILD_BUILD_HOST" scripts/mkcompile_h
           
           CONFIG_FILE="arch/arm64/configs/${{ env.DEFCONFIG_NAME }}"
           cat >> "$CONFIG_FILE" << 'EOF'
