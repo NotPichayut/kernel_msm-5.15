@@ -70,8 +70,6 @@
 
 #include <trace/hooks/selinux.h>
 
-int fake_state = 0;
-
 struct convert_context_args {
 	struct selinux_state *state;
 	struct policydb *oldp;
