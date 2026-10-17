@@ -1,4 +1,4 @@
-name: "Advanced NeutronClang Combo Build"
+name: "Advanced Build"
 
 env:
   OUT_DIR: "out"
