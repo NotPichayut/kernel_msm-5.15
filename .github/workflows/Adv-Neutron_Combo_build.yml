@@ -774,18 +774,36 @@ jobs:
         if: matrix.variant == 'ksu' && github.event.inputs.susfsSupport == 'Enabled'
         working-directory: ./${{ env.kernelDir }}/${{ env.kernelName }}
         run: |
-          # Clone SUSFS4KSU for kernel patches only (not KSU integration)
-          echo "📦 Cloning SUSFS4KSU for kernel patches..."
-          git clone --depth=1 https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android13-5.15
+          echo "📥 Downloading SUSFS kernel patch..."
+          SUSFS_KERNEL_PATCH="$PWD/50_add_susfs_in_gki-android13-5.15.patch"
+          curl -fsSL -o "$SUSFS_KERNEL_PATCH" \
+            "https://raw.githubusercontent.com/nullptr-t-oss/kernel_kit/main/kernel_patches/salami-oos14/susfs/50_add_susfs_in_gki-android13-5.15.patch" \
+            || { echo "❌ Failed to download SUSFS patch"; exit 1; }
 
-          echo "☣️ Applying namespace.c Fake Patch (if applicable)"
-          if grep -q '^#include <trace/hooks/blk.h>$' fs/namespace.c; then
-            sed -i '/^#include <trace\/hooks\/blk.h>$/d' fs/namespace.c
-            NS_FAKE_PATCHED=1
-          else
-            echo "ℹ️ blk.h include not present in fs/namespace.c — skipping fake patch"
-            NS_FAKE_PATCHED=0
+          NS_FAKE_PATCHED=0
+          MM_FAKE_PATCHED=0
+
+          echo "🔧 Applying SUSFS kernel patch (dry run first)..."
+          if ! patch -p1 --dry-run -s < "$SUSFS_KERNEL_PATCH"; then
+            echo "⚠️ Clean apply failed — retrying with fake-patch workaround"
+            if grep -q '^#include <trace/hooks/blk.h>$' fs/namespace.c; then
+              sed -i '/^#include <trace\/hooks\/blk.h>$/d' fs/namespace.c
+              NS_FAKE_PATCHED=1
+            fi
+            if grep -q '^#include <trace/hooks/mm.h>$' fs/proc/task_mmu.c; then
+              sed -i '/^#include <trace\/hooks\/mm.h>$/d' fs/proc/task_mmu.c
+              MM_FAKE_PATCHED=1
+            fi
           fi
+
+          if patch -p1 < "$SUSFS_KERNEL_PATCH"; then
+            echo "✅ SUSFS patch successfully applied"
+          else
+            echo "❌ SUSFS patch failed"
+            find . -name '*.rej' -print
+            exit 1
+          fi
+          rm -f "$SUSFS_KERNEL_PATCH"
 
           echo "☣️ Applying task_mmu.c Fake Patch (if applicable)"
           if grep -q '^#include <trace/hooks/mm.h>$' fs/proc/task_mmu.c; then
