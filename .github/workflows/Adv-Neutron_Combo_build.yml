@@ -804,29 +804,6 @@ jobs:
             exit 1
           fi
           rm -f "$SUSFS_KERNEL_PATCH"
-
-          echo "☣️ Applying task_mmu.c Fake Patch (if applicable)"
-          if grep -q '^#include <trace/hooks/mm.h>$' fs/proc/task_mmu.c; then
-            sed -i '/^#include <trace\/hooks\/mm.h>$/d' fs/proc/task_mmu.c
-            MM_FAKE_PATCHED=1
-          else
-            echo "ℹ️ mm.h include not present in fs/proc/task_mmu.c — skipping fake patch"
-            MM_FAKE_PATCHED=0
-          fi
-          
-          SUSFS_KERNEL_PATCH="susfs4ksu/kernel_patches/50_add_susfs_in_gki-android13-5.15.patch"
-          
-          echo "🔧 Applying SUSFS kernel patch..."
-          if patch -p1 < "$SUSFS_KERNEL_PATCH"; then
-            echo "✅ SUSFS patch successfully applied"
-          else
-            echo "⚠️ SUSFS patch failed — copying files manually"
-          fi
-
-          echo "🔧 Applying SUSFS -> KernelSU patch..."
-          KSU_PATCH="susfs4ksu/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch"
-          
-          echo "📄 Forcing SUSFS source injection..."
           
           # Always replace fs/susfs.c
           mkdir -p fs
