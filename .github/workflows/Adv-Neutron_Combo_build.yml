@@ -48,6 +48,7 @@ on:
         type: choice
         default: "BakaSU"
         options:
+          - "KernelSU"
           - "KowSU"
           - "SukiSU"
           - "BakaSU"
@@ -680,7 +681,24 @@ jobs:
         working-directory: ./${{ env.kernelDir }}/${{ env.kernelName }}
         run: |
           curl -LSs "https://raw.githubusercontent.com/maxsteeel/nomount/refs/heads/dev/kernel/setup.sh" | bash -
+     
+      - name: "🔧 Setup KernelSU"
+        if: matrix.variant == 'ksu' && github.event.inputs.ksuVariant == 'KernelSU'
+        working-directory: ./${{ env.kernelDir }}/${{ env.kernelName }}
+        run: |
+          rm -rf ./KernelSU ./drivers/kernelsu
           
+          # Install KernelSU
+          curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -
+          
+          # Add KSU configs
+          CONFIG_FILE="arch/arm64/configs/${{ env.DEFCONFIG_NAME }}"
+          cat >> "$CONFIG_FILE" << 'EOF'
+          CONFIG_KSU=y
+          EOF
+          
+          echo "🎉 KernelSU setup complete!" 
+      
       - name: "🔧 Setup KowSU"
         if: matrix.variant == 'ksu' && github.event.inputs.ksuVariant == 'KowSU'
         working-directory: ./${{ env.kernelDir }}/${{ env.kernelName }}
@@ -806,11 +824,33 @@ jobs:
           if patch -p1 < "$SUSFS_KERNEL_PATCH"; then
             echo "✅ SUSFS patch successfully applied"
           else
-            echo "❌ SUSFS patch failed"
-            find . -name '*.rej' ! -name 'mkcompile_h.rej' | while read -r r; do
-              echo "=== $r ==="; cat "$r"
-            done
-            exit 1
+            echo "⚠️ Patch had rejects — applying known include-only hunks manually"
+
+            if [ -f fs/namespace.c.rej ]; then
+              if ! grep -q 'CL_COPY_MNT_NS BIT(25)' fs/namespace.c; then
+                perl -0pi -e 's{(#include "internal\.h"\n)}{$1#ifdef CONFIG_KSU_SUSFS\n#include <linux/susfs_def.h>\n#endif // #ifdef CONFIG_KSU_SUSFS\n}' fs/namespace.c
+                perl -0pi -e 's{(/\* Maximum number of mounts in a mount namespace \*/\n)}{#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT\nextern bool susfs_is_current_ksu_domain(void);\nextern struct static_key_true susfs_is_sdcard_android_data_not_decrypted;\n\n#define CL_COPY_MNT_NS BIT(25) /* used by copy_mnt_ns() */\n#endif // #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT\n\n$1}' fs/namespace.c
+              fi
+              grep -q 'CL_COPY_MNT_NS BIT(25)' fs/namespace.c || { echo "❌ namespace.c manual inject failed"; exit 1; }
+              rm -f fs/namespace.c.rej fs/namespace.c.orig
+            fi
+
+            if [ -f fs/proc/task_mmu.c.rej ]; then
+              if ! grep -q 'linux/susfs_def.h' fs/proc/task_mmu.c; then
+                perl -0pi -e 's{(#include <asm/elf\.h>\n)}{#if defined(CONFIG_KSU_SUSFS_SUS_KSTAT) || defined(CONFIG_KSU_SUSFS_SUS_MAP) || defined(CONFIG_KSU_SUSFS_OPEN_REDIRECT)\n#include <linux/susfs_def.h>\n#endif\n\n$1}' fs/proc/task_mmu.c
+              fi
+              grep -q 'linux/susfs_def.h' fs/proc/task_mmu.c || { echo "❌ task_mmu.c manual inject failed"; exit 1; }
+              rm -f fs/proc/task_mmu.c.rej fs/proc/task_mmu.c.orig
+            fi
+
+            if find . -name '*.rej' ! -name 'mkcompile_h.rej' | grep -q .; then
+              echo "❌ Unexpected rejects remain"
+              find . -name '*.rej' ! -name 'mkcompile_h.rej' | while read -r r; do
+                echo "=== $r ==="; cat "$r"
+              done
+              exit 1
+            fi
+            echo "✅ SUSFS patch applied (with manual include fixups)"
           fi
           rm -f "$SUSFS_KERNEL_PATCH"
 
