@@ -935,11 +935,16 @@ jobs:
           
           echo "🎉 SUSFS Integration setup complete!"
 
-          echo "=== kernel side ==="
-          grep -n "fake_state\|my_setprocattr\|my_write_context\|my_write_access\|handle_sel_write\|handle_selinux_setprocattr" security/selinux/hooks.c security/selinux/selinuxfs.c || true
+          echo "=== hooks.c setprocattr ==="
+          sed -n '6585,6625p' security/selinux/hooks.c
+          echo "=== selinuxfs.c write_context ==="
+          sed -n '700,760p' security/selinux/selinuxfs.c
+          echo "=== selinuxfs.c write_access ==="
+          sed -n '975,1040p' security/selinux/selinuxfs.c
           echo "=== KernelSU side ==="
-          grep -rn "fake_state\|my_setprocattr\|my_write_context\|my_write_access\|KSU_COMPAT_HAS_SUSFS_FEATURE_SELINUX_HIDE" KernelSU/kernel | head -40 || true
-
+          ls drivers/kernelsu | head -30
+          grep -rn "fake_state\|my_setprocattr\|my_write_context\|my_write_access\|SELINUX_HIDE" drivers/kernelsu/ | head -40 || true
+          
       - name: "🔧 Fix compilation errors in FUSE"
         if: github.event.inputs.kernelBranch == 'codelinaro'
         working-directory: ./${{ env.kernelDir }}/${{ env.kernelName }}
